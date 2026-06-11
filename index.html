@@ -131,6 +131,26 @@
             border-radius: 4px;
             color: #00ffcc;
         }
+
+        /* Ô chọn màu tùy chỉnh */
+        .color-picker {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            width: 55px;
+            height: 32px;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+        }
+        .color-picker::-webkit-color-swatch {
+            border-radius: 6px;
+            border: 1px solid #555;
+        }
+        .color-picker::-moz-color-swatch {
+            border-radius: 6px;
+            border: 1px solid #555;
+        }
         
         /* Menu chọn nhanh Part */
         .part-selector {
@@ -188,6 +208,12 @@
             <button class="btn" onclick="adjustFont(-4)">-</button>
             <span id="font-val" class="value-display">42px</span>
             <button class="btn" onclick="adjustFont(4)">+</button>
+        </div>
+
+        <!-- MỤC CHỌN MÀU CHỮ MỚI ĐƯỢC THÊM VÀO ĐÂY -->
+        <div class="control-row">
+            <span class="control-label">Màu chữ</span>
+            <input type="color" id="text-color-picker" class="color-picker" value="#ffffff" oninput="changeTextColor(this.value)">
         </div>
 
         <div class="control-row">
@@ -386,6 +412,11 @@
             if (fontSize > 130) fontSize = 130;
             contentDiv.style.fontSize = fontSize + 'px';
             fontVal.innerText = fontSize + 'px';
+        }
+
+        // HÀM ĐỔI MÀU CHỮ MỚI ĐƯỢC THÊM VÀO
+        function changeTextColor(colorValue) {
+            contentDiv.style.color = colorValue;
         }
 
         // --- XỬ LÝ NHẤN GIỮ NÚT CHUỘT / CẢM ỨNG (LONG PRESS) ĐỂ ĐỔI TỐC ĐỘ LIÊN TỤC ---
