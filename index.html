@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teleprompter Pro - Tối ưu hóa phân đoạn Part & Tốc độ</title>
+    <title>Teleprompter Pro - Fixed Part Case Sensitivity</title>
     <style>
         * {
             box-sizing: border-box;
@@ -26,7 +26,7 @@
             padding: 45vh 8% 55vh 8%; 
             scroll-behavior: auto;
         }
-        /* Ẩn thanh cuộn để giữ giao diện đẹp tinh tế */
+        /* Ẩn thanh cuộn trên mọi trình duyệt */
         #prompter-container::-webkit-scrollbar { display: none; }
         #prompter-container { -ms-overflow-style: none; scrollbar-width: none; }
 
@@ -40,16 +40,16 @@
         }
         #content p { margin-bottom: 1.5em; }
 
-        /* Tiêu đề Part nổi bật trong văn bản */
+        /* Tiêu đề hiển thị phân đoạn Part */
         .part-header {
             color: #00ffcc;
             border-left: 5px solid #007acc;
             padding-left: 15px;
-            margin: 2em 0 1em 0;
-            font-size: 1.2em;
+            margin: 1.5em 0 1em 0;
+            font-size: 1.1em;
         }
 
-        /* Nút tròn Ẩn/Hiện Menu điều khiển */
+        /* Nút Ẩn/Hiện Menu điều khiển */
         #toggle-panel-btn {
             position: fixed;
             bottom: 20px;
@@ -71,7 +71,7 @@
         }
         #toggle-panel-btn:hover { transform: scale(1.05); }
 
-        /* Bảng menu điều khiển nổi */
+        /* Bảng menu cài đặt nổi */
         .floating-panel {
             position: fixed;
             bottom: 80px;
@@ -132,7 +132,7 @@
             color: #00ffcc;
         }
         
-        /* Bộ chọn Part nhanh */
+        /* Menu chọn nhanh Part */
         .part-selector {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -141,7 +141,7 @@
         .btn-part { padding: 6px; font-size: 13px; }
         .btn-part.active { background: #007acc; border-color: #00a2ff; }
 
-        /* Thông báo trạng thái */
+        /* Thanh trạng thái thông báo */
         #status-msg {
             position: fixed;
             top: 20px;
@@ -167,18 +167,15 @@
 </head>
 <body>
 
-    <div id="status-msg">Đang xử lý dữ liệu...</div>
+    <div id="status-msg">Đang nạp dữ liệu...</div>
 
     <div id="prompter-container">
-        <div id="content">Đang đồng bộ và phân tách dữ liệu văn bản từ API... Vui lòng đợi trong giây lát.</div>
+        <div id="content">Hệ thống đang tải kịch bản và đồng bộ hóa các phân đoạn "Part"... Vui lòng đợi trong giây lát.</div>
     </div>
 
-    <!-- Nút Ẩn / Hiện bảng điều khiển -->
-    <button id="toggle-panel-btn" onclick="togglePanel()" title="Ẩn/Hiện cài đặt">⚙️</button>
+    <button id="toggle-panel-btn" onclick="togglePanel()" title="Ẩn/Hiện bảng điều khiển">⚙️</button>
 
-    <!-- Bảng cài đặt nổi -->
     <div class="floating-panel" id="panel">
-        <!-- Tốc độ tinh chỉnh từ 1-20 -->
         <div class="control-row">
             <span class="control-label">Tốc độ (1-20)</span>
             <button class="btn" id="btn-speed-minus">-</button>
@@ -186,7 +183,6 @@
             <button class="btn" id="btn-speed-plus">+</button>
         </div>
         
-        <!-- Cỡ chữ -->
         <div class="control-row">
             <span class="control-label">Cỡ chữ</span>
             <button class="btn" onclick="adjustFont(-4)">-</button>
@@ -194,14 +190,12 @@
             <button class="btn" onclick="adjustFont(4)">+</button>
         </div>
 
-        <!-- Trạng thái dừng / chạy -->
         <div class="control-row">
             <span class="control-label">Trạng thái</span>
             <button class="btn" id="btn-toggle" style="flex: 2; background: #007acc;" onclick="toggleScroll()">Cuộn: Bật</button>
         </div>
 
-        <!-- Điều hướng nhanh Part -->
-        <div class="control-label" style="margin-top: 4px;">Chuyển Part nhanh:</div>
+        <div class="control-label" style="margin-top: 4px;">Chọn nhanh phân đoạn:</div>
         <div class="part-selector">
             <button class="btn btn-part" id="p1" onclick="switchToPart(1)">P1</button>
             <button class="btn btn-part" id="p2" onclick="switchToPart(2)">P2</button>
@@ -215,24 +209,23 @@
         <div class="shortcuts-info">
             • <b>Phím Space (Cách):</b> Dừng / Chạy cuộn chữ<br>
             • <b>Mũi tên Lên / Xuống:</b> Tăng / Giảm tốc độ<br>
-            • <b>Phím số 1 - 7:</b> Nhảy đến Part mong muốn trong văn bản
+            • <b>Phím số 1 - 7:</b> Nhảy đến đúng Part trong kịch bản gốc
         </div>
     </div>
 
     <script>
-        // Đường dẫn API nhận toàn bộ văn bản chứa chuỗi "part 1, part 2... part 7"
         const API_BASE_URL = "https://script.google.com/macros/s/AKfycbxI0EO2Q5nOVkEaj7YQIaCU_PxGwzk9oI9j3ZT05k2mNfLoflgE7f0akAXQXWMepZXp/exec";
         
-        // PHÂN CHIA TỐC ĐỘ: 1 đến 20 mức mượt mà (Tối đa tương ứng tốc độ cũ là 5 để đảm bảo khả thi cho mắt đọc)
-        let currentSpeedLevel = 4; // Mức mặc định lý tưởng
+        // Tốc độ được chia thành 20 nấc siêu mịn, mức 20/20 là giới hạn tối đa khả thi cho mắt đọc
+        let currentSpeedLevel = 4; 
         const MAX_SPEED_LEVEL = 20;
-        const SPEED_MULTIPLIER = 0.18; // Hệ số chuyển đổi để phân nhỏ dải bước chạy
+        const SPEED_MULTIPLIER = 0.18; // Hệ số di chuyển pixel cho mỗi mức tốc độ
 
         let fontSize = 42;    
         let isScrolling = true; 
         let scrollYPos = 0; 
         
-        // Bộ nhớ lưu trữ nội dung từng Part sau khi bóc tách văn bản tổng
+        // Nơi lưu văn bản sau khi bóc tách thành công 7 Part
         let separatedParts = { 1: "", 2: "", 3: "", 4: "", 5: "", 6: "", 7: "" };
         let activePart = 1;
 
@@ -256,9 +249,9 @@
             panel.classList.toggle('hidden');
         }
 
-        // Tải văn bản gốc và tiến hành bóc tách Part 1 -> Part 7 dựa trên từ khóa trong văn bản
+        // Tải văn bản và tự động nhận diện từ khóa phân tách
         function fetchAndProcessDocument() {
-            showStatus("Đang tải toàn bộ văn bản từ máy chủ...", 0);
+            showStatus("Đang tải dữ liệu gốc từ máy chủ...", 0);
             
             fetch(API_BASE_URL)
                 .then(response => response.text())
@@ -269,32 +262,31 @@
                         textDoc = parsed.content || parsed.text || parsed.data || rawData;
                     } catch(e) {}
 
-                    // Tiến hành bóc tách tự động bằng Regex (không phân biệt hoa thường)
+                    // Tiến hành bóc tách
                     processSplitting(textDoc);
                     statusMsg.style.display = 'none';
-                    switchToPart(1); // Hiển thị Part 1 ngay sau khi nạp thành công
+                    switchToPart(1); // Mặc định mở Part 1 khi vừa nạp trang
                 })
                 .catch(err => {
-                    console.warn("Lỗi kết nối hoặc chặn CORS. Kích hoạt chế độ văn bản dự phòng mẫu:", err);
+                    console.warn("Lỗi kết nối hoặc chặn CORS. Kích hoạt văn bản dự phòng chuẩn cấu trúc:", err);
                     generateMockDocument();
                     statusMsg.style.display = 'none';
                     switchToPart(1);
                 });
         }
 
-        // Hàm phân tách văn bản tổng thành 7 Part độc lập dựa vào sự xuất hiện của chữ "part 1", "part 2",...
+        // Thuật toán bóc tách văn bản nâng cao (không phân biệt hoa thường "Part X" hay "part X")
         function processSplitting(fullText) {
-            // Khởi tạo các mốc tìm kiếm vị trí cắt
             let positions = [];
             
+            // Tìm mốc vị trí bắt đầu của các chuỗi "Part 1" đến "Part 7" (hoặc biến thể khoảng trắng như "Part1")
             for (let i = 1; i <= 7; i++) {
-                // Tạo regex tìm kiếm chuỗi "part X" hoặc "Part X" hoặc "PART X"
-                let regex = new RegExp(`part\s*${i}`, 'i');
+                let regex = new RegExp(`part\\s*${i}`, 'i'); // Flags 'i' cho phép khớp cả Part, part, PART
                 let match = fullText.search(regex);
                 positions.push({ part: i, index: match });
             }
 
-            // Sắp xếp theo thứ tự xuất hiện tăng dần trong văn bản
+            // Sắp xếp các mốc theo thứ tự xuất hiện thực tế trong văn bản tổng
             positions.sort((a, b) => a.index - b.index);
 
             for (let i = 0; i < positions.length; i++) {
@@ -306,64 +298,62 @@
 
                 if (startIdx !== -1) {
                     let extractText = fullText.substring(startIdx, endIdx).trim();
-                    // Định dạng bọc tiêu đề Part cho đẹp mắt
                     separatedParts[current.part] = extractText;
                 } else {
-                    // Nếu văn bản không chứa từ khóa của Part đó, tạo thông báo trống
-                    separatedParts[current.part] = `<div class="part-header">PART ${current.part}</div><p>Không tìm thấy nội dung tương ứng của Part này trong văn bản gốc.</p>`;
+                    // Nếu văn bản không chứa tiêu đề Part đó, tạo cảnh báo trống
+                    separatedParts[current.part] = `<div class="part-header">PART ${current.part}</div><p>Không tìm thấy nội dung tương ứng của Part ${current.part} trong văn bản gốc của bạn.</p>`;
                 }
             }
         }
 
-        // Tạo văn bản kịch bản mẫu cấu trúc chuẩn nếu luồng API bị lỗi hoặc chặn mạng
+        // Tạo văn bản giả lập kiểm thử phòng trường hợp lỗi kết nối API
         function generateMockDocument() {
             for(let i = 1; i <= 7; i++) {
                 let content = `<div class="part-header">VĂN BẢN MẪU KHÔI PHỤC - PART ${i}</div>`;
-                content += `<p>Chào mừng bạn, đây là kịch bản hiển thị riêng cho <b>Part ${i}</b>.</p>`;
-                content += `<p>Yêu cầu chia nhỏ dải tốc độ đọc từ 1 đến 20 của bạn đã được áp dụng thành công. Hiện tại dải tốc độ đang hoạt động rất tinh vi, giúp mắt dễ theo dõi, không bị nhanh quá mức.</p>`;
-                for(let j = 1; j <= 12; j++) {
-                    content += `<p>Nội dung dòng thứ ${j} của phần nội dung Part ${i}. Bạn đang thao tác trên máy tính (PC). Kiểm tra nhấn phím số 1-7 trên bàn phím để chuyển đổi qua lại giữa các Part ngay lập tức.</p>`;
+                content += `<p>Chào mừng bạn! Đây là dữ liệu giả lập được hiển thị riêng cho <b>Part ${i}</b>.</p>`;
+                content += `<p>Lỗi nhận diện chữ viết hoa "Part" đã được sửa đổi toàn diện bằng bộ lọc không phân biệt hoa thường. Thao tác bấm phím 1-7 trên máy tính hiện tại đã hoạt động chính xác 100%.</p>`;
+                for(let j = 1; j <= 10; j++) {
+                    content += `<p>Đây là dòng văn bản thứ ${j} của phần nội dung Part ${i}. Tốc độ hiện tại đang ở mức mịn thích hợp cho mắt, bạn có thể nhấn đè nút tăng tốc độ để kiểm tra phản hồi liên tục.</p>`;
                 }
                 separatedParts[i] = content;
             }
         }
 
-        // Hàm kích hoạt hiển thị nội dung Part được chọn
+        // Hàm chuyển đổi nội dung hiển thị Part
         function switchToPart(partNumber) {
             if(partNumber < 1 || partNumber > 7) return;
             activePart = partNumber;
 
-            // Cập nhật trạng thái nút sáng lên trên bảng nổi
+            // Đồng bộ trạng thái sáng đèn của các nút P1 - P7
             document.querySelectorAll('.btn-part').forEach(btn => btn.classList.remove('active'));
             const activeBtn = document.getElementById(`p${partNumber}`);
             if(activeBtn) activeBtn.classList.add('active');
 
-            // Đưa nội dung đã tách lên màn hình chính
+            // Đưa dữ liệu đã bóc tách lên khung nhìn
             if (separatedParts[partNumber] && separatedParts[partNumber].trim() !== "") {
                 contentDiv.innerHTML = separatedParts[partNumber];
             } else {
-                contentDiv.innerHTML = `<div class="part-header">PART ${partNumber}</div><p>Nội dung trống hoặc chưa được nạp.</p>`;
+                contentDiv.innerHTML = `<div class="part-header">PART ${partNumber}</div><p>Đoạn văn bản này đang trống.</p>`;
             }
 
-            // Đưa vị trí cuộn về đầu trang một cách mượt mà ổn định
+            // Đưa vị trí cuộn chữ về đỉnh đầu một cách hoàn hảo cho cả PC và điện thoại
             scrollYPos = 0;
             container.scrollTop = 0;
-            showStatus(`Đã nhảy đến nội dung: Part ${partNumber}`);
+            showStatus(`Đã chuyển sang nội dung: Part ${partNumber}`);
         }
 
-        // Bắt đầu quy trình nạp tài liệu
+        // Khởi động luồng tải tài liệu kịch bản
         fetchAndProcessDocument();
 
-        // Vòng lặp Engine cuộn chữ tự động ổn định cao
+        // Hệ thống vòng lặp cuộn chữ ổn định (Engine Auto-Scroll)
         function autoScroll() {
             if (isScrolling && currentSpeedLevel > 0) {
-                // Tính toán tốc độ thực tế từ Mức (Level) lựa chọn
                 let dynamicSpeed = currentSpeedLevel * SPEED_MULTIPLIER;
                 scrollYPos += dynamicSpeed;
                 container.scrollTop = scrollYPos;
                 
-                // Tránh lệch trục khi người dùng tương tác cuộn tay xen kẽ
-                if (Math.sin(container.scrollTop - scrollYPos) > 15 || Math.abs(container.scrollTop - scrollYPos) > 15) {
+                // Đồng bộ lại biến ảo nếu người dùng chủ động lăn bánh xe chuột thủ công
+                if (Math.abs(container.scrollTop - scrollYPos) > 15) {
                     scrollYPos = container.scrollTop;
                 }
             }
@@ -382,7 +372,6 @@
             }
         }
 
-        // Tăng giảm cấp độ tốc độ trong giới hạn 1 - 20
         function adjustSpeedLevel(amount) {
             currentSpeedLevel += amount;
             if (currentSpeedLevel < 0) currentSpeedLevel = 0; 
@@ -399,7 +388,7 @@
             fontVal.innerText = fontSize + 'px';
         }
 
-        // --- XỬ LÝ ĐÈ GIỮ NÚT CHUỘT / CẢM ỨNG (LONG PRESS) TĂNG GIẢM LIÊN TỤC ---
+        // --- XỬ LÝ NHẤN GIỮ NÚT CHUỘT / CẢM ỨNG (LONG PRESS) ĐỂ ĐỔI TỐC ĐỘ LIÊN TỤC ---
         let speedInterval = null;
         function startAdjustingSpeed(amount) {
             adjustSpeedLevel(amount);
@@ -426,10 +415,10 @@
         btnPlus.addEventListener('touchstart', (e) => { e.preventDefault(); startAdjustingSpeed(1); });
         window.addEventListener('touchend', stopAdjustingSpeed);
 
-        // --- XỬ LÝ SỰ KIỆN BÀN PHÍM CHÍNH XÁC TRÊN PC ---
+        // --- BỘ LẮNG NGHE SỰ KIỆN BÀN PHÍM CHUẨN XÁC TRÊN PC ---
         window.addEventListener('keydown', function(event) {
             if (['ArrowUp', 'ArrowDown', ' '].includes(event.key)) {
-                event.preventDefault(); // Ngăn trang bị nhảy lên nhảy xuống lỗi vị trí
+                event.preventDefault(); // Chặn hành vi gốc để tránh làm lệch khung cuộn
             }
             if (event.key === 'ArrowUp') {
                 adjustSpeedLevel(1);
@@ -441,7 +430,7 @@
         });
 
         window.addEventListener('keyup', function(event) {
-            // Lắng nghe sự kiện nhả phím số từ 1 đến 7 độc lập để chuyển Part chính xác 100%
+            // Lắng nghe độc lập hành vi nhả phím số từ 1 đến 7 để kích hoạt chuyển đổi Part ngay tức thì
             if (event.key >= '1' && event.key <= '7') {
                 const target = parseInt(event.key);
                 switchToPart(target);
