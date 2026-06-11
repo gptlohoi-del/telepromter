@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teleprompter Chuyên Nghiệp</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: #111111;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        /* Giao diện hiển thị chữ */
+        #prompter-container {
+            width: 100%;
+            height: 100%;
+            overflow-y: scroll;
+            padding: 40vh 10% 50vh 10%; /* Tạo khoảng trống trên dưới để chữ cuộn tự nhiên */
+            scroll-behavior: smooth;
+            -ms-overflow-style: none;  /* Ẩn thanh cuộn IE/Edge */
+            scrollbar-width: none;  /* Ẩn thanh cuộn Firefox */
+        }
+        #prompter-container::-webkit-scrollbar {
+            display: none; /* Ẩn thanh cuộn Chrome/Safari */
+        }
+        #content {
+            font-size: 40px;
+            line-height: 1.6;
+            font-weight: bold;
+            text-align: left;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        /* CSS cho các thẻ nội dung tải về từ API */
+        #content p {
+            margin-bottom: 1.5em;
+        }
+
+        /* Thanh điều khiển nổi (Floating Control Panel) */
+        .floating-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(34, 34, 34, 0.9);
+            border: 1px solid #444;
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+            min-width: 250px;
+        }
+        .control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .control-label {
+            font-size: 13px;
+            color: #bbb;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            flex: 1;
+        }
+        .btn {
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 6px 12px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .btn:hover {
+            background: #555;
+            border-color: #777;
+        }
+        .btn:active {
+            background: #007acc;
+        }
+        .value-display {
+            font-size: 14px;
+            font-weight: bold;
+            min-width: 45px;
+            text-align: center;
+            background: #000;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: #00ffcc;
+        }
+        
+        /* Menu chọn Part nhanh */
+        .part-selector {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+        }
+        .btn-part {
+            padding: 5px;
+            font-size: 12px;
+        }
+        .btn-part.active {
+            background: #007acc;
+            border-color: #00a2ff;
+        }
+
+        /* Trạng thái thông báo */
+        #status-msg {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 122, 204, 0.9);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            display: none;
+            z-index: 2000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        
+        /* Hướng dẫn phím tắt */
+        .shortcuts-info {
+            font-size: 11px;
+            color: #888;
+            border-top: 1px solid #444;
+            padding-top: 8px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="status-msg">Đang tải dữ liệu...</div>
+
+    <div id="prompter-container">
+        <div id="content">Đang tải dữ liệu từ Google Script... Vui lòng đợi hoặc ấn các số từ 1 đến 7 để chọn Part.</div>
+    </div>
+
+    <!-- Floating Control Panel -->
+    <div class="floating-panel">
+        <!-- Điều khiển tốc độ -->
+        <div class="control-row">
+            <span class="control-label">Tốc độ (↑/↓)</span>
+            <button class="btn" onclick="adjustSpeed(-1)">-</button>
+            <span id="speed-val" class="value-display">2</span>
+            <button class="btn" onclick="adjustSpeed(1)">+</button>
+        </div>
+        
+        <!-- Điều khiển kích thước chữ -->
+        <div class="control-row">
+            <span class="control-label">Cỡ chữ</span>
+            <button class="btn" onclick="adjustFont(-4)">-</button>
+            <span id="font-val" class="value-display">40px</span>
+            <button class="btn" onclick="adjustFont(4)">+</button>
+        </div>
+
+        <!-- Trạng thái Cuộn / Tạm dừng -->
+        <div class="control-row">
+            <span class="control-label">Trạng thái</span>
+            <button class="btn" id="btn-toggle" style="flex: 2; background: #007acc;" onclick="toggleScroll()">Cuộn: Bật</button>
+        </div>
+
+        <!-- Chọn Part nhanh bằng chuột -->
+        <div class="control-label" style="margin-top: 5px;">Chọn nhanh Part (Phím số 1-7)</div>
+        <div class="part-selector">
+            <button class="btn btn-part" id="p1" onclick="loadPart(1)">P1</button>
+            <button class="btn btn-part" id="p2" onclick="loadPart(2)">P2</button>
+            <button class="btn btn-part" id="p3" onclick="loadPart(3)">P3</button>
+            <button class="btn btn-part" id="p4" onclick="loadPart(4)">P4</button>
+            <button class="btn btn-part" id="p5" onclick="loadPart(5)">P5</button>
+            <button class="btn btn-part" id="p6" onclick="loadPart(6)">P6</button>
+            <button class="btn btn-part" id="p7" onclick="loadPart(7)">P7</button>
+        </div>
+
+        <!-- Phím tắt hướng dẫn -->
+        <div class="shortcuts-info">
+            • <b>Phím Space (Cách):</b> Chạy / Tạm dừng<br>
+            • <b>Mũi tên Lên/Xuống:</b> Tăng/Giảm tốc độ<br>
+            • <b>Phím số 1 - 7:</b> Chuyển nhanh qua Part tương ứng
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = "https://script.google.com/macros/s/AKfycbxI0EO2Q5nOVkEaj7YQIaCU_PxGwzk9oI9j3ZT05k2mNfLoflgE7f0akAXQXWMepZXp/exec";
+        
+        // Biến cấu hình ban đầu
+        let currentSpeed = 2; // Tốc độ cuộn (pixel mỗi frame)
+        let fontSize = 40;    // Cỡ chữ mặc định (px)
+        let isScrolling = true; 
+        let currentPart = 1;
+        let cachedData = {};  // Lưu trữ dữ liệu đã tải tránh tải lại nhiều lần
+        
+        const container = document.getElementById('prompter-container');
+        const contentDiv = document.getElementById('content');
+        const speedVal = document.getElementById('speed-val');
+        const fontVal = document.getElementById('font-val');
+        const btnToggle = document.getElementById('btn-toggle');
+        const statusMsg = document.getElementById('status-msg');
+
+        // Hàm hiển thị thông báo trạng thái ngắn hạn
+        function showStatus(text, duration = 2000) {
+            statusMsg.innerText = text;
+            statusMsg.style.display = 'block';
+            if(duration > 0) {
+                setTimeout(() => {
+                    statusMsg.style.display = 'none';
+                }, duration);
+            }
+        }
+
+        // Hàm gọi API để lấy dữ liệu từng Part
+        function loadPart(partNumber) {
+            currentPart = partNumber;
+            
+            // Cập nhật trạng thái active trên giao diện nút bấm
+            document.querySelectorAll('.btn-part').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.getElementById(`p${partNumber}`);
+            if(activeBtn) activeBtn.classList.add('active');
+
+            // Nếu đã lưu trong bộ nhớ tạm (Cache) thì hiển thị luôn
+            if (cachedData[partNumber]) {
+                contentDiv.innerHTML = cachedData[partNumber];
+                container.scrollTop = 0; // Reset về đầu trang
+                showStatus(`Đã hiển thị Part ${partNumber}`);
+                return;
+            }
+
+            // Nếu chưa có, tiến hành fetch từ API đường dẫn của bạn
+            showStatus(`Đang tải dữ liệu Part ${partNumber}...`, 0);
+            
+            // Tạo URL có chứa query param để lấy đúng Part (mô hình chuẩn của Google Web App trả về theo tham số)
+            // Nếu API của bạn trả về toàn bộ hoặc cấu trúc khác, mã này vẫn linh động truyền tham số part
+            const fetchUrl = `${API_BASE_URL}?part=${partNumber}`;
+
+            fetch(fetchUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error("Mạng có sự cố");
+                    return response.text();
+                })
+                .then(data => {
+                    // Xử lý dữ liệu trả về (nếu là JSON hoặc HTML text)
+                    let formattedContent = data;
+                    try {
+                        const jsonData = JSON.parse(data);
+                        // Đoán định các trường dữ liệu phổ biến trả về từ Google Script
+                        formattedContent = jsonData.content || jsonData.text || jsonData.data || data;
+                    } catch (e) {
+                        // Không phải JSON, giữ nguyên định dạng text/html
+                    }
+
+                    cachedData[partNumber] = formattedContent;
+                    contentDiv.innerHTML = formattedContent;
+                    container.scrollTop = 0; // Đưa chữ cuộn về vị trí đầu
+                    statusMsg.style.display = 'none';
+                })
+                .catch(error => {
+                    console.error("Lỗi:", error);
+                    // Hiển thị thông báo lỗi đồng thời giả lập text mẫu để người dùng kiểm thử tính năng teleprompter
+                    contentDiv.innerHTML = `<h3>[Lỗi tải dữ liệu hoặc do chặn CORS từ Google Script]</h3><p>Đây là nội dung mô phỏng cho <b>Part ${partNumber}</b> để kiểm tra các tính năng cuộn chữ:</p><p>Dòng 1: Xin chào, đây là hệ thống Teleprompter máy nhắc chữ tự động chuyên nghiệp.</p><p>Dòng 2: Bạn đang xem thử nghiệm tính năng nhảy Part khi nhấn phím số ${partNumber}.</p><p>Dòng 3: Bạn có thể nhấn mũi tên Lên để tăng tốc độ cuộn, mũi tên Xuống để giảm tốc độ.</p><p>Dòng 4: Sử dụng các nút bấm trên thanh Float điều khiển góc phải màn hình để thay đổi nhanh cỡ chữ.</p><p>Dòng 5: Nhấn phím Spacebar (khoảng cách) để Tạm dừng hoặc tiếp tục cuộn chữ bất cứ lúc nào.</p><p>Dòng 6: Nội dung chữ cuộn mượt mà từ dưới lên trên giúp MC/Diễn giả dễ dàng theo dõi.</p>`;
+                    container.scrollTop = 0;
+                    statusMsg.style.display = 'none';
+                });
+        }
+
+        // Tự động tải Part 1 khi vừa mở trang
+        loadPart(1);
+
+        // Hàm xử lý cuộn chữ từ dưới lên bằng RequestAnimationFrame (Mượt mà hơn setInterval)
+        let scrollPos = 0;
+        function autoScroll() {
+            if (isScrolling && currentSpeed > 0) {
+                // Tăng vị trí cuộn theo tốc độ cấu hình
+                container.scrollTop += currentSpeed * 0.5; 
+                
+                // Kiểm tra nếu cuộn chạm đáy thì quay lại hoặc dừng (Tùy chọn)
+                if (container.scrollTop + container.clientHeight >= container.scrollHeight) {
+                    // Hết chữ, có thể cho dừng hoặc reset tùy ý. Ở đây giữ nguyên vị trí đáy chữ.
+                }
+            }
+            requestAnimationFrame(autoScroll);
+        }
+        // Kích hoạt vòng lặp cuộn chữ
+        requestAnimationFrame(autoScroll);
+
+        // Bật / Tắt trạng thái cuộn chữ
+        function toggleScroll() {
+            isScrolling = !isScrolling;
+            if (isScrolling) {
+                btnToggle.innerText = "Cuộn: Bật";
+                btnToggle.style.background = "#007acc";
+            } else {
+                btnToggle.innerText = "Cuộn: Tạm dừng";
+                btnToggle.style.background = "#cc2929";
+            }
+        }
+
+        // Thay đổi tốc độ chữ cuộn
+        function adjustSpeed(amount) {
+            currentSpeed += amount;
+            if (currentSpeed < 0) currentSpeed = 0; // Không cho cuộn ngược
+            if (currentSpeed > 30) currentSpeed = 30; // Giới hạn tốc độ tối đa
+            speedVal.innerText = currentSpeed;
+            showStatus(`Tốc độ: ${currentSpeed}`);
+        }
+
+        // Thay đổi kích thước cỡ chữ
+        function adjustFont(amount) {
+            fontSize += amount;
+            if (fontSize < 16) fontSize = 16;   // Giới hạn nhỏ nhất
+            if (fontSize > 120) fontSize = 120; // Giới hạn lớn nhất
+            contentDiv.style.fontSize = fontSize + 'px';
+            fontVal.innerText = fontSize + 'px';
+        }
+
+        // Xử lý sự kiện bàn phím từ máy tính (Bàn phím PC)
+        window.addEventListener('keydown', function(event) {
+            // Ngăn chặn hành vi mặc định của phím mũi tên và spacebar (tránh trang bị nhảy loạn)
+            if (['ArrowUp', 'ArrowDown', ' '].includes(event.key)) {
+                event.preventDefault();
+            }
+
+            // Phím mũi tên Lên -> Tăng tốc độ cuộn
+            if (event.key === 'ArrowUp') {
+                adjustSpeed(1);
+            }
+            // Phím mũi tên Xuống -> Giảm tốc độ cuộn
+            else if (event.key === 'ArrowDown') {
+                adjustSpeed(-1);
+            }
+            // Phím Spacebar -> Bật/Tắt cuộn chữ nhanh
+            else if (event.key === ' ') {
+                toggleScroll();
+            }
+            // Các phím số từ 1 đến 7 -> Chuyển nhanh giữa các Part
+            else if (event.key >= '1' && event.key <= '7') {
+                const targetPart = parseInt(event.key);
+                loadPart(targetPart);
+            }
+        });
+
+        // Cho phép người dùng cuộn chuột thủ công mà không làm lỗi vị trí
+        container.addEventListener('wheel', () => {
+            // Người dùng có thể chủ động cuộn bằng chuột khi cần tua nhanh đoạn chữ
+        }, { passive: true });
+
+    </script>
+</body>
+</html>
