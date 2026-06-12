@@ -23,8 +23,10 @@
             width: 100%;
             height: 100%;
             overflow-y: auto;
+            /* Mặc định lề trái phải ban đầu là 8% */
             padding: 45vh 8% 55vh 8%; 
             scroll-behavior: auto;
+            transition: padding 0.1s ease; /* Thêm hiệu ứng mượt khi kéo thanh lề */
         }
         /* Ẩn thanh cuộn trên mọi trình duyệt */
         #prompter-container::-webkit-scrollbar { display: none; }
@@ -37,6 +39,8 @@
             text-align: left;
             white-space: pre-wrap;
             word-wrap: break-word;
+            max-width: 100%;
+            margin: 0 auto; /* Đảm bảo nội dung luôn căn giữa khi co hẹp */
         }
         #content p { margin-bottom: 1.5em; }
 
@@ -62,7 +66,7 @@
             height: 50px;
             font-size: 24px;
             cursor: pointer;
-            z-index: 1001;
+            z-index: 1010;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
             display: flex;
             align-items: center;
@@ -85,7 +89,9 @@
             gap: 12px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.7);
             z-index: 1000;
-            min-width: 290px;
+            min-width: 310px;
+            max-height: 85vh;
+            overflow-y: auto;
             transition: opacity 0.2s ease, transform 0.2s ease;
         }
         .floating-panel.hidden {
@@ -130,6 +136,25 @@
             padding: 5px 8px;
             border-radius: 4px;
             color: #00ffcc;
+        }
+
+        /* Thanh trượt điều chỉnh */
+        .range-slider {
+            flex: 1.5;
+            height: 6px;
+            -webkit-appearance: none;
+            background: #444;
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+        }
+        .range-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #00ffcc;
+            cursor: pointer;
         }
 
         /* Ô chọn màu tùy chỉnh */
@@ -210,7 +235,12 @@
             <button class="btn" onclick="adjustFont(4)">+</button>
         </div>
 
-        <!-- MỤC CHỌN MÀU CHỮ MỚI ĐƯỢC THÊM VÀO ĐÂY -->
+        <div class="control-row">
+            <span class="control-label">Khoảng lề</span>
+            <input type="range" id="margin-slider" class="range-slider" min="5" max="35" value="8" oninput="changeMargin(this.value)">
+            <span id="margin-val" class="value-display">8%</span>
+        </div>
+
         <div class="control-row">
             <span class="control-label">Màu chữ</span>
             <input type="color" id="text-color-picker" class="color-picker" value="#ffffff" oninput="changeTextColor(this.value)">
@@ -242,16 +272,14 @@
     <script>
         const API_BASE_URL = "https://script.google.com/macros/s/AKfycbxI0EO2Q5nOVkEaj7YQIaCU_PxGwzk9oI9j3ZT05k2mNfLoflgE7f0akAXQXWMepZXp/exec";
         
-        // Tốc độ được chia thành 20 nấc siêu mịn, mức 20/20 là giới hạn tối đa khả thi cho mắt đọc
         let currentSpeedLevel = 4; 
         const MAX_SPEED_LEVEL = 20;
-        const SPEED_MULTIPLIER = 0.18; // Hệ số di chuyển pixel cho mỗi mức tốc độ
+        const SPEED_MULTIPLIER = 0.18; 
 
         let fontSize = 42;    
         let isScrolling = true; 
         let scrollYPos = 0; 
         
-        // Nơi lưu văn bản sau khi bóc tách thành công 7 Part
         let separatedParts = { 1: "", 2: "", 3: "", 4: "", 5: "", 6: "", 7: "" };
         let activePart = 1;
 
@@ -259,6 +287,7 @@
         const contentDiv = document.getElementById('content');
         const speedVal = document.getElementById('speed-val');
         const fontVal = document.getElementById('font-val');
+        const marginVal = document.getElementById('margin-val');
         const btnToggle = document.getElementById('btn-toggle');
         const statusMsg = document.getElementById('status-msg');
         const panel = document.getElementById('panel');
@@ -275,7 +304,6 @@
             panel.classList.toggle('hidden');
         }
 
-        // Tải văn bản và tự động nhận diện từ khóa phân tách
         function fetchAndProcessDocument() {
             showStatus("Đang tải dữ liệu gốc từ máy chủ...", 0);
             
@@ -288,10 +316,9 @@
                         textDoc = parsed.content || parsed.text || parsed.data || rawData;
                     } catch(e) {}
 
-                    // Tiến hành bóc tách
                     processSplitting(textDoc);
                     statusMsg.style.display = 'none';
-                    switchToPart(1); // Mặc định mở Part 1 khi vừa nạp trang
+                    switchToPart(1); 
                 })
                 .catch(err => {
                     console.warn("Lỗi kết nối hoặc chặn CORS. Kích hoạt văn bản dự phòng chuẩn cấu trúc:", err);
@@ -301,18 +328,15 @@
                 });
         }
 
-        // Thuật toán bóc tách văn bản nâng cao (không phân biệt hoa thường "Part X" hay "part X")
         function processSplitting(fullText) {
             let positions = [];
             
-            // Tìm mốc vị trí bắt đầu của các chuỗi "Part 1" đến "Part 7" (hoặc biến thể khoảng trắng như "Part1")
             for (let i = 1; i <= 7; i++) {
-                let regex = new RegExp(`part\\s*${i}`, 'i'); // Flags 'i' cho phép khớp cả Part, part, PART
+                let regex = new RegExp(`part\\s*${i}`, 'i'); 
                 let match = fullText.search(regex);
                 positions.push({ part: i, index: match });
             }
 
-            // Sắp xếp các mốc theo thứ tự xuất hiện thực tế trong văn bản tổng
             positions.sort((a, b) => a.index - b.index);
 
             for (let i = 0; i < positions.length; i++) {
@@ -326,13 +350,11 @@
                     let extractText = fullText.substring(startIdx, endIdx).trim();
                     separatedParts[current.part] = extractText;
                 } else {
-                    // Nếu văn bản không chứa tiêu đề Part đó, tạo cảnh báo trống
                     separatedParts[current.part] = `<div class="part-header">PART ${current.part}</div><p>Không tìm thấy nội dung tương ứng của Part ${current.part} trong văn bản gốc của bạn.</p>`;
                 }
             }
         }
 
-        // Tạo văn bản giả lập kiểm thử phòng trường hợp lỗi kết nối API
         function generateMockDocument() {
             for(let i = 1; i <= 7; i++) {
                 let content = `<div class="part-header">VĂN BẢN MẪU KHÔI PHỤC - PART ${i}</div>`;
@@ -345,40 +367,33 @@
             }
         }
 
-        // Hàm chuyển đổi nội dung hiển thị Part
         function switchToPart(partNumber) {
             if(partNumber < 1 || partNumber > 7) return;
             activePart = partNumber;
 
-            // Đồng bộ trạng thái sáng đèn của các nút P1 - P7
             document.querySelectorAll('.btn-part').forEach(btn => btn.classList.remove('active'));
             const activeBtn = document.getElementById(`p${partNumber}`);
             if(activeBtn) activeBtn.classList.add('active');
 
-            // Đưa dữ liệu đã bóc tách lên khung nhìn
             if (separatedParts[partNumber] && separatedParts[partNumber].trim() !== "") {
                 contentDiv.innerHTML = separatedParts[partNumber];
             } else {
                 contentDiv.innerHTML = `<div class="part-header">PART ${partNumber}</div><p>Đoạn văn bản này đang trống.</p>`;
             }
 
-            // Đưa vị trí cuộn chữ về đỉnh đầu một cách hoàn hảo cho cả PC và điện thoại
             scrollYPos = 0;
             container.scrollTop = 0;
             showStatus(`Đã chuyển sang nội dung: Part ${partNumber}`);
         }
 
-        // Khởi động luồng tải tài liệu kịch bản
         fetchAndProcessDocument();
 
-        // Hệ thống vòng lặp cuộn chữ ổn định (Engine Auto-Scroll)
         function autoScroll() {
             if (isScrolling && currentSpeedLevel > 0) {
                 let dynamicSpeed = currentSpeedLevel * SPEED_MULTIPLIER;
                 scrollYPos += dynamicSpeed;
                 container.scrollTop = scrollYPos;
                 
-                // Đồng bộ lại biến ảo nếu người dùng chủ động lăn bánh xe chuột thủ công
                 if (Math.abs(container.scrollTop - scrollYPos) > 15) {
                     scrollYPos = container.scrollTop;
                 }
@@ -414,12 +429,18 @@
             fontVal.innerText = fontSize + 'px';
         }
 
-        // HÀM ĐỔI MÀU CHỮ MỚI ĐƯỢC THÊM VÀO
+        // HÀM ĐỔI KHOẢNG CÁCH LỀ (MỚI ĐƯỢC BỔ SUNG)
+        function changeMargin(marginValue) {
+            // Giữ nguyên khoảng trống phía trên/dưới cho trải nghiệm cuộn mượt mà (45vh và 55vh)
+            container.style.paddingLeft = marginValue + '%';
+            container.style.paddingRight = marginValue + '%';
+            marginVal.innerText = marginValue + '%';
+        }
+
         function changeTextColor(colorValue) {
             contentDiv.style.color = colorValue;
         }
 
-        // --- XỬ LÝ NHẤN GIỮ NÚT CHUỘT / CẢM ỨNG (LONG PRESS) ĐỂ ĐỔI TỐC ĐỘ LIÊN TỤC ---
         let speedInterval = null;
         function startAdjustingSpeed(amount) {
             adjustSpeedLevel(amount);
@@ -446,10 +467,9 @@
         btnPlus.addEventListener('touchstart', (e) => { e.preventDefault(); startAdjustingSpeed(1); });
         window.addEventListener('touchend', stopAdjustingSpeed);
 
-        // --- BỘ LẮNG NGHE SỰ KIỆN BÀN PHÍM CHUẨN XÁC TRÊN PC ---
         window.addEventListener('keydown', function(event) {
             if (['ArrowUp', 'ArrowDown', ' '].includes(event.key)) {
-                event.preventDefault(); // Chặn hành vi gốc để tránh làm lệch khung cuộn
+                event.preventDefault(); 
             }
             if (event.key === 'ArrowUp') {
                 adjustSpeedLevel(1);
@@ -461,7 +481,6 @@
         });
 
         window.addEventListener('keyup', function(event) {
-            // Lắng nghe độc lập hành vi nhả phím số từ 1 đến 7 để kích hoạt chuyển đổi Part ngay tức thì
             if (event.key >= '1' && event.key <= '7') {
                 const target = parseInt(event.key);
                 switchToPart(target);
