@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teleprompter Pro - Fixed Part Case Sensitivity</title>
+    <title>Teleprompter Pro - Auto Next Part</title>
     <style>
         * {
             box-sizing: border-box;
@@ -282,6 +282,7 @@
         
         let separatedParts = { 1: "", 2: "", 3: "", 4: "", 5: "", 6: "", 7: "" };
         let activePart = 1;
+        let isWaitingForNextPart = false; // Biến trạng thái chờ chuyển Part
 
         const container = document.getElementById('prompter-container');
         const contentDiv = document.getElementById('content');
@@ -370,6 +371,7 @@
         function switchToPart(partNumber) {
             if(partNumber < 1 || partNumber > 7) return;
             activePart = partNumber;
+            isWaitingForNextPart = false; // Reset trạng thái chờ
 
             document.querySelectorAll('.btn-part').forEach(btn => btn.classList.remove('active'));
             const activeBtn = document.getElementById(`p${partNumber}`);
@@ -389,13 +391,32 @@
         fetchAndProcessDocument();
 
         function autoScroll() {
-            if (isScrolling && currentSpeedLevel > 0) {
+            if (isScrolling && currentSpeedLevel > 0 && !isWaitingForNextPart) {
                 let dynamicSpeed = currentSpeedLevel * SPEED_MULTIPLIER;
                 scrollYPos += dynamicSpeed;
                 container.scrollTop = scrollYPos;
                 
                 if (Math.abs(container.scrollTop - scrollYPos) > 15) {
                     scrollYPos = container.scrollTop;
+                }
+
+                // KIỂM TRA CHẠM ĐÁY: Nếu cuộn hết chữ của Part hiện tại
+                if (container.scrollTop + container.clientHeight >= container.scrollHeight - 2) {
+                    if (activePart < 7) {
+                        isWaitingForNextPart = true; // Khóa cuộn tạm thời
+                        showStatus(`Chuẩn bị chuyển sang Part ${activePart + 1}...`, 1500);
+                        
+                        // Chờ 1.5 giây để người dùng đọc xong dòng cuối rồi mới nhảy Part
+                        setTimeout(() => {
+                            switchToPart(activePart + 1);
+                        }, 1500);
+                    } else {
+                        // Nếu đã ở Part 7 và hết chữ
+                        showStatus("Đã cuộn hết toàn bộ kịch bản!");
+                        isScrolling = false;
+                        btnToggle.innerText = "Cuộn: Tạm dừng";
+                        btnToggle.style.background = "#cc2929";
+                    }
                 }
             }
             requestAnimationFrame(autoScroll);
