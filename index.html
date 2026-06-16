@@ -24,7 +24,7 @@
             height: 100%;
             overflow-y: auto;
             /* Mặc định lề trái phải ban đầu là 8% */
-            padding: 45vh 8% 55vh 8%; 
+            padding: 45vh 15% 55vh 8%; 
             scroll-behavior: auto;
             transition: padding 0.1s ease; /* Thêm hiệu ứng mượt khi kéo thanh lề */
         }
@@ -237,7 +237,7 @@
 
         <div class="control-row">
             <span class="control-label">Khoảng lề</span>
-            <input type="range" id="margin-slider" class="range-slider" min="5" max="35" value="8" oninput="changeMargin(this.value)">
+            <input type="range" id="margin-slider" class="range-slider" min="1" max="50" value="15" oninput="changeMargin(this.value)">
             <span id="margin-val" class="value-display">8%</span>
         </div>
 
