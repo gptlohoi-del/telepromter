@@ -23,10 +23,9 @@
             width: 100%;
             height: 100%;
             overflow-y: auto;
-            /* Mặc định lề trái phải ban đầu là 8% */
-            padding: 45vh 15% 55vh 8%; 
+            padding: 45vh 15% 55vh 15%; 
             scroll-behavior: auto;
-            transition: padding 0.1s ease; /* Thêm hiệu ứng mượt khi kéo thanh lề */
+            transition: padding 0.1s ease; 
         }
         /* Ẩn thanh cuộn trên mọi trình duyệt */
         #prompter-container::-webkit-scrollbar { display: none; }
@@ -40,7 +39,7 @@
             white-space: pre-wrap;
             word-wrap: break-word;
             max-width: 100%;
-            margin: 0 auto; /* Đảm bảo nội dung luôn căn giữa khi co hẹp */
+            margin: 0 auto; 
         }
         #content p { margin-bottom: 1.5em; }
 
@@ -130,7 +129,7 @@
         .value-display {
             font-size: 15px;
             font-weight: bold;
-            min-width: 55px;
+            min-width: 65px; /* Tăng nhẹ để không bị nhảy chữ khi hiển thị số có 2 chữ số */
             text-align: center;
             background: #000;
             padding: 5px 8px;
@@ -222,9 +221,9 @@
 
     <div class="floating-panel" id="panel">
         <div class="control-row">
-            <span class="control-label">Tốc độ (1-20)</span>
+            <span class="control-label">Tốc độ (1-80)</span>
             <button class="btn" id="btn-speed-minus">-</button>
-            <span id="speed-val" class="value-display">4 / 20</span>
+            <span id="speed-val" class="value-display">8 / 80</span>
             <button class="btn" id="btn-speed-plus">+</button>
         </div>
         
@@ -237,8 +236,8 @@
 
         <div class="control-row">
             <span class="control-label">Khoảng lề</span>
-            <input type="range" id="margin-slider" class="range-slider" min="1" max="50" value="15" oninput="changeMargin(this.value)">
-            <span id="margin-val" class="value-display">8%</span>
+            <input type="range" id="margin-slider" class="range-slider" min="5" max="50" value="15" oninput="changeMargin(this.value)">
+            <span id="margin-val" class="value-display">15%</span>
         </div>
 
         <div class="control-row">
@@ -272,9 +271,10 @@
     <script>
         const API_BASE_URL = "https://script.google.com/macros/s/AKfycbxI0EO2Q5nOVkEaj7YQIaCU_PxGwzk9oI9j3ZT05k2mNfLoflgE7f0akAXQXWMepZXp/exec";
         
-        let currentSpeedLevel = 4; 
-        const MAX_SPEED_LEVEL = 20;
-        const SPEED_MULTIPLIER = 0.18; 
+        // ĐÃ SỬA: Chia nhỏ thang đo, tăng mức tối đa lên 80 và giảm một nửa hệ số nhân tốc độ
+        let currentSpeedLevel = 8;  // Mức 8 mới tương đương với mức 4 cũ
+        const MAX_SPEED_LEVEL = 80; // Tổng số mức mới
+        const SPEED_MULTIPLIER = 0.09; // Giảm từ 0.18 xuống 0.09 để giữ độ mịn và vận tốc chuẩn
 
         let fontSize = 42;    
         let isScrolling = true; 
@@ -282,7 +282,7 @@
         
         let separatedParts = { 1: "", 2: "", 3: "", 4: "", 5: "", 6: "", 7: "" };
         let activePart = 1;
-        let isWaitingForNextPart = false; // Biến trạng thái chờ chuyển Part
+        let isWaitingForNextPart = false; 
 
         const container = document.getElementById('prompter-container');
         const contentDiv = document.getElementById('content');
@@ -300,6 +300,9 @@
                 setTimeout(() => { statusMsg.style.display = 'none'; }, duration);
             }
         }
+
+        // Cập nhật giá trị hiển thị ban đầu chuẩn xác theo thang mới
+        speedVal.innerText = `${currentSpeedLevel} / ${MAX_SPEED_LEVEL}`;
 
         function togglePanel() {
             panel.classList.toggle('hidden');
@@ -360,9 +363,9 @@
             for(let i = 1; i <= 7; i++) {
                 let content = `<div class="part-header">VĂN BẢN MẪU KHÔI PHỤC - PART ${i}</div>`;
                 content += `<p>Chào mừng bạn! Đây là dữ liệu giả lập được hiển thị riêng cho <b>Part ${i}</b>.</p>`;
-                content += `<p>Lỗi nhận diện chữ viết hoa "Part" đã được sửa đổi toàn diện bằng bộ lọc không phân biệt hoa thường. Thao tác bấm phím 1-7 trên máy tính hiện tại đã hoạt động chính xác 100%.</p>`;
+                content += `<p>Khoảng tốc độ yêu thích từ 1-10 cũ hiện đã được chia nhỏ tinh tế thành 1-40 (Thang tổng 80 mức) để tạo độ mượt tối ưu khi đọc.</p>`;
                 for(let j = 1; j <= 10; j++) {
-                    content += `<p>Đây là dòng văn bản thứ ${j} của phần nội dung Part ${i}. Tốc độ hiện tại đang ở mức mịn thích hợp cho mắt, bạn có thể nhấn đè nút tăng tốc độ để kiểm tra phản hồi liên tục.</p>`;
+                    content += `<p>Đây là dòng văn bản thứ ${j} của phần nội dung Part ${i}. Bạn có thể bấm nút (+) hoặc (-) từng chút một để cảm nhận bước chuyển tốc độ cực kỳ nhỏ và mượt.</p>`;
                 }
                 separatedParts[i] = content;
             }
@@ -371,7 +374,7 @@
         function switchToPart(partNumber) {
             if(partNumber < 1 || partNumber > 7) return;
             activePart = partNumber;
-            isWaitingForNextPart = false; // Reset trạng thái chờ
+            isWaitingForNextPart = false; 
 
             document.querySelectorAll('.btn-part').forEach(btn => btn.classList.remove('active'));
             const activeBtn = document.getElementById(`p${partNumber}`);
@@ -400,18 +403,15 @@
                     scrollYPos = container.scrollTop;
                 }
 
-                // KIỂM TRA CHẠM ĐÁY: Nếu cuộn hết chữ của Part hiện tại
                 if (container.scrollTop + container.clientHeight >= container.scrollHeight - 2) {
                     if (activePart < 7) {
-                        isWaitingForNextPart = true; // Khóa cuộn tạm thời
+                        isWaitingForNextPart = true; 
                         showStatus(`Chuẩn bị chuyển sang Part ${activePart + 1}...`, 1500);
                         
-                        // Chờ 0.1 giây để người dùng đọc xong dòng cuối rồi mới nhảy Part
                         setTimeout(() => {
                             switchToPart(activePart + 1);
                         }, 100);
                     } else {
-                        // Nếu đã ở Part 7 và hết chữ
                         showStatus("Đã cuộn hết toàn bộ kịch bản!");
                         isScrolling = false;
                         btnToggle.innerText = "Cuộn: Tạm dừng";
@@ -450,9 +450,7 @@
             fontVal.innerText = fontSize + 'px';
         }
 
-        // HÀM ĐỔI KHOẢNG CÁCH LỀ (MỚI ĐƯỢC BỔ SUNG)
         function changeMargin(marginValue) {
-            // Giữ nguyên khoảng trống phía trên/dưới cho trải nghiệm cuộn mượt mà (45vh và 55vh)
             container.style.paddingLeft = marginValue + '%';
             container.style.paddingRight = marginValue + '%';
             marginVal.innerText = marginValue + '%';
@@ -507,7 +505,6 @@
                 switchToPart(target);
             }
         });
-
     </script>
 </body>
 </html>
