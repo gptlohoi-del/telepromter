@@ -3,254 +3,170 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teleprompter Pro - Auto Next Part</title>
+    <title>Teleprompter Pro - Auto Next Part & Transcription</title>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+        :root {
+            /* Mặc định khoảng cách */
+            --row-gap-val: 0.8em; 
+            --ipa-gap-val: 0.0em; 
         }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body, html {
-            width: 100%;
-            height: 100%;
-            background-color: #111111;
-            color: #ffffff;
+            width: 100%; height: 100%;
+            background-color: #111111; color: #ffffff;
             font-family: 'Segoe UI', Arial, sans-serif;
             overflow: hidden;
         }
-        /* Vùng hiển thị văn bản cuộn */
         #prompter-container {
-            width: 100%;
-            height: 100%;
+            width: 100%; height: 100%;
             overflow-y: auto;
             padding: 45vh 15% 55vh 15%; 
             scroll-behavior: auto;
             transition: padding 0.1s ease; 
         }
-        /* Ẩn thanh cuộn trên mọi trình duyệt */
         #prompter-container::-webkit-scrollbar { display: none; }
         #prompter-container { -ms-overflow-style: none; scrollbar-width: none; }
 
         #content {
-            font-size: 42px;
-            line-height: 1.6;
-            font-weight: bold;
-            text-align: left;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            max-width: 100%;
-            margin: 0 auto; 
+            font-size: 42px; 
+            font-weight: bold; text-align: left;
+            white-space: pre-wrap; word-wrap: break-word;
+            max-width: 100%; margin: 0 auto; 
         }
-        #content p { margin-bottom: 1.5em; }
 
-        /* Tiêu đề hiển thị phân đoạn Part */
         .part-header {
-            color: #00ffcc;
-            border-left: 5px solid #007acc;
-            padding-left: 15px;
-            margin: 1.5em 0 1em 0;
-            font-size: 1.1em;
+            color: #00ffcc; border-left: 5px solid #007acc;
+            padding-left: 15px; margin: 1.5em 0 1em 0;
+            font-size: 1.1em; text-transform: uppercase;
         }
 
-        /* Nút Ẩn/Hiện Menu điều khiển */
-        #toggle-panel-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #007acc;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            font-size: 24px;
-            cursor: pointer;
-            z-index: 1010;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            display: flex;
+        /* --- CSS CHO PHIÊN ÂM GHÉP TỪ --- */
+        .trans-row {
+            display: flex; 
+            flex-wrap: wrap; 
+            white-space: normal; 
+            column-gap: 0.4em; 
+            /* Khoảng cách giữa các đoạn văn cố định */
+            margin-bottom: 1em; 
+        }
+        .word-pair {
+            display: inline-flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-end;
+            /* Dùng margin để cho phép ép khoảng cách xuống số ÂM */
+            margin-bottom: var(--row-gap-val); 
+        }
+        .word-eng {
+            font-size: 1em; 
+            color: #ffffff;
+            /* Ép vỡ giới hạn lề an toàn của font chữ */
+            line-height: 0.85; 
+        }
+        .word-ipa {
+            font-size: 0.55em; 
+            color: #ffcc00; 
+            font-weight: normal; 
+            line-height: 0.85; 
+            /* Dùng margin-top để cho phép phiên âm đè ngược lên tiếng Anh (số ÂM) */
+            margin-top: var(--ipa-gap-val); 
+        }
+        /* ----------------------------- */
+
+        #toggle-panel-btn {
+            position: fixed; bottom: 20px; right: 20px;
+            background: #007acc; color: white; border: none;
+            border-radius: 50%; width: 50px; height: 50px;
+            font-size: 24px; cursor: pointer; z-index: 1010;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center;
             transition: transform 0.2s;
         }
         #toggle-panel-btn:hover { transform: scale(1.05); }
 
-        /* Bảng menu cài đặt nổi */
         .floating-panel {
-            position: fixed;
-            bottom: 80px;
-            right: 20px;
-            background: rgba(25, 25, 25, 0.96);
-            border: 1px solid #444;
-            border-radius: 12px;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.7);
-            z-index: 1000;
-            min-width: 310px;
-            max-height: 85vh;
-            overflow-y: auto;
+            position: fixed; bottom: 80px; right: 20px;
+            background: rgba(25, 25, 25, 0.96); border: 1px solid #444;
+            border-radius: 12px; padding: 15px; display: flex;
+            flex-direction: column; gap: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+            z-index: 1000; min-width: 330px; max-height: 85vh; overflow-y: auto;
             transition: opacity 0.2s ease, transform 0.2s ease;
         }
-        .floating-panel.hidden {
-            opacity: 0;
-            transform: translateY(20px);
-            pointer-events: none;
-        }
-        .control-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-        }
-        .control-label {
-            font-size: 13px;
-            color: #ccc;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            flex: 1;
-        }
-        .btn {
-            background: #333;
-            color: white;
-            border: 1px solid #555;
-            padding: 6px 14px;
-            font-size: 18px;
-            font-weight: bold;
-            border-radius: 6px;
-            cursor: pointer;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-        .btn:hover { background: #444; }
-        .btn:active { background: #007acc; }
-        
-        .value-display {
-            font-size: 15px;
-            font-weight: bold;
-            min-width: 65px;
-            text-align: center;
-            background: #000;
-            padding: 5px 8px;
-            border-radius: 4px;
-            color: #00ffcc;
-        }
-
-        /* Thanh trượt điều chỉnh */
-        .range-slider {
-            flex: 1.5;
-            height: 6px;
-            -webkit-appearance: none;
-            background: #444;
-            border-radius: 3px;
-            outline: none;
-            cursor: pointer;
-        }
-        .range-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: #00ffcc;
-            cursor: pointer;
-        }
-
-        /* Ô chọn màu tùy chỉnh */
-        .color-picker {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            width: 55px;
-            height: 32px;
-            background-color: transparent;
-            border: none;
-            cursor: pointer;
-        }
-        .color-picker::-webkit-color-swatch {
-            border-radius: 6px;
-            border: 1px solid #555;
-        }
-        .color-picker::-moz-color-swatch {
-            border-radius: 6px;
-            border: 1px solid #555;
-        }
-        
-        /* Menu chọn nhanh Part */
-        .part-selector {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 5px;
-        }
+        .floating-panel.hidden { opacity: 0; transform: translateY(20px); pointer-events: none; }
+        .control-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .control-label { font-size: 12px; color: #ccc; text-transform: uppercase; letter-spacing: 1px; flex: 1; }
+        .btn { background: #333; color: white; border: 1px solid #555; padding: 6px 14px; font-size: 18px; font-weight: bold; border-radius: 6px; cursor: pointer; user-select: none; }
+        .btn:hover { background: #444; } .btn:active { background: #007acc; }
+        .value-display { font-size: 14px; font-weight: bold; min-width: 60px; text-align: center; background: #000; padding: 5px 8px; border-radius: 4px; color: #00ffcc; }
+        .range-slider { flex: 1.5; height: 6px; -webkit-appearance: none; background: #444; border-radius: 3px; outline: none; cursor: pointer; }
+        .range-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #00ffcc; cursor: pointer; }
+        .color-picker { -webkit-appearance: none; appearance: none; width: 55px; height: 32px; background-color: transparent; border: none; cursor: pointer; }
+        .color-picker::-webkit-color-swatch { border-radius: 6px; border: 1px solid #555; }
+        .part-selector { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
         .btn-part { padding: 6px; font-size: 13px; }
         .btn-part.active { background: #007acc; border-color: #00a2ff; }
 
-        /* Thanh trạng thái thông báo */
         #status-msg {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 122, 204, 0.95);
-            padding: 10px 25px;
-            border-radius: 20px;
-            font-size: 15px;
-            font-weight: bold;
-            display: none;
-            z-index: 2000;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-        }
-        .shortcuts-info {
-            font-size: 11px;
-            color: #aaa;
-            border-top: 1px solid #444;
-            padding-top: 8px;
-            line-height: 1.5;
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(0, 122, 204, 0.95); padding: 10px 25px; border-radius: 20px;
+            font-size: 15px; font-weight: bold; display: none; z-index: 2000; box-shadow: 0 4px 15px rgba(0,0,0,0.4);
         }
     </style>
 </head>
 <body>
-
     <div id="status-msg">Đang nạp dữ liệu...</div>
-
-    <div id="prompter-container">
-        <div id="content">Hệ thống đang tải kịch bản và đồng bộ hóa các phân đoạn "Part"... Vui lòng đợi trong giây lát.</div>
-    </div>
-
+    <div id="prompter-container"><div id="content">Hệ thống đang tải kịch bản...</div></div>
     <button id="toggle-panel-btn" onclick="togglePanel()" title="Ẩn/Hiện bảng điều khiển">⚙️</button>
 
     <div class="floating-panel" id="panel">
         <div class="control-row">
-            <span class="control-label">Tốc độ (1-80)</span>
+            <span class="control-label">Tốc độ</span>
             <button class="btn" id="btn-speed-minus">-</button>
             <span id="speed-val" class="value-display">8 / 80</span>
             <button class="btn" id="btn-speed-plus">+</button>
         </div>
-        
         <div class="control-row">
             <span class="control-label">Cỡ chữ</span>
             <button class="btn" onclick="adjustFont(-1)">-</button>
             <span id="font-val" class="value-display">42px</span>
             <button class="btn" onclick="adjustFont(1)">+</button>
         </div>
+        
+        <div class="control-row">
+            <span class="control-label">Cách Dòng</span>
+            <button class="btn" onclick="adjustRowGap(-0.1)">-</button>
+            <span id="rowgap-val" class="value-display">0.8</span>
+            <button class="btn" onclick="adjustRowGap(0.1)">+</button>
+        </div>
 
+        <div class="control-row">
+            <span class="control-label">Cách P.Âm</span>
+            <button class="btn" onclick="adjustIpaGap(-0.1)">-</button>
+            <span id="ipagap-val" class="value-display">0.0</span>
+            <button class="btn" onclick="adjustIpaGap(0.1)">+</button>
+        </div>
+
+        <div class="control-row">
+            <span class="control-label">Độ trễ Part</span>
+            <button class="btn" onclick="adjustDelayTime(-0.1)">-</button>
+            <span id="delay-val" class="value-display">1.5s</span>
+            <button class="btn" onclick="adjustDelayTime(0.1)">+</button>
+        </div>
         <div class="control-row">
             <span class="control-label">Khoảng lề</span>
             <input type="range" id="margin-slider" class="range-slider" min="5" max="50" value="15" oninput="changeMargin(this.value)">
             <span id="margin-val" class="value-display">15%</span>
         </div>
-
         <div class="control-row">
             <span class="control-label">Màu chữ</span>
             <input type="color" id="text-color-picker" class="color-picker" value="#ffffff" oninput="changeTextColor(this.value)">
         </div>
-
         <div class="control-row">
             <span class="control-label">Trạng thái</span>
             <button class="btn" id="btn-toggle" style="flex: 2; background: #007acc;" onclick="toggleScroll()">Cuộn: Bật</button>
         </div>
-
-        <div class="control-label" style="margin-top: 4px;">Chọn nhanh phân đoạn:</div>
+        <div class="control-label" style="margin-top: 4px;">Chọn nhanh Part:</div>
         <div class="part-selector">
             <button class="btn btn-part" id="p1" onclick="switchToPart(1)">P1</button>
             <button class="btn btn-part" id="p2" onclick="switchToPart(2)">P2</button>
@@ -260,120 +176,128 @@
             <button class="btn btn-part" id="p6" onclick="switchToPart(6)">P6</button>
             <button class="btn btn-part" id="p7" onclick="switchToPart(7)">P7</button>
         </div>
-
-        <div class="shortcuts-info">
-            • <b>Phím Space (Cách):</b> Dừng / Chạy cuộn chữ<br>
-            • <b>Mũi tên Lên / Xuống:</b> Tăng / Giảm tốc độ<br>
-            • <b>Phím số 1 - 7:</b> Nhảy đến đúng Part trong kịch bản gốc
-        </div>
     </div>
 
     <script>
         const API_BASE_URL = "https://script.google.com/macros/s/AKfycbxI0EO2Q5nOVkEaj7YQIaCU_PxGwzk9oI9j3ZT05k2mNfLoflgE7f0akAXQXWMepZXp/exec";
         
-        let currentSpeedLevel = 8;  
-        const MAX_SPEED_LEVEL = 80; 
-        const SPEED_MULTIPLIER = 0.09; 
+        let currentSpeedLevel = 8, fontSize = 42;
+        let delayTimeMs = 1500;      
+        
+        // Cập nhật giá trị khởi tạo
+        let currentRowGap = 0.8; 
+        let currentIpaGap = 0.0;
 
-        let fontSize = 42;    
-        let isScrolling = true; 
-        let scrollYPos = 0; 
+        const MAX_SPEED_LEVEL = 80, SPEED_MULTIPLIER = 0.09; 
+        let isScrolling = true, scrollYPos = 0, isWaitingForNextPart = false; 
         
         let separatedParts = { 1: "", 2: "", 3: "", 4: "", 5: "", 6: "", 7: "" };
         let activePart = 1;
-        let isWaitingForNextPart = false; 
 
         const container = document.getElementById('prompter-container');
         const contentDiv = document.getElementById('content');
-        const speedVal = document.getElementById('speed-val');
-        const fontVal = document.getElementById('font-val');
-        const marginVal = document.getElementById('margin-val');
-        const btnToggle = document.getElementById('btn-toggle');
         const statusMsg = document.getElementById('status-msg');
-        const panel = document.getElementById('panel');
-
+        
         function showStatus(text, duration = 2000) {
-            statusMsg.innerText = text;
-            statusMsg.style.display = 'block';
-            if(duration > 0) {
-                setTimeout(() => { statusMsg.style.display = 'none'; }, duration);
-            }
+            statusMsg.innerText = text; statusMsg.style.display = 'block';
+            if(duration > 0) setTimeout(() => { statusMsg.style.display = 'none'; }, duration);
         }
 
-        speedVal.innerText = `${currentSpeedLevel} / ${MAX_SPEED_LEVEL}`;
-
-        function togglePanel() {
-            panel.classList.toggle('hidden');
-        }
+        function togglePanel() { document.getElementById('panel').classList.toggle('hidden'); }
 
         function fetchAndProcessDocument() {
-            showStatus("Đang tải dữ liệu gốc từ máy chủ...", 0);
-            
+            showStatus("Đang tải dữ liệu...", 0);
             fetch(API_BASE_URL)
-                .then(response => response.text())
+                .then(res => res.text())
                 .then(rawData => {
                     let textDoc = rawData;
                     try {
                         const parsed = JSON.parse(rawData);
                         textDoc = parsed.content || parsed.text || parsed.data || rawData;
                     } catch(e) {}
-
                     processSplitting(textDoc);
                     statusMsg.style.display = 'none';
                     switchToPart(1); 
-                })
-                .catch(err => {
-                    console.warn("Lỗi kết nối hoặc chặn CORS. Kích hoạt văn bản dự phòng chuẩn cấu trúc:", err);
-                    generateMockDocument();
-                    statusMsg.style.display = 'none';
-                    switchToPart(1);
+                }).catch(err => {
+                    showStatus("Lỗi kết nối. Vui lòng kiểm tra lại Google Script.", 3000);
                 });
         }
 
         function processSplitting(fullText) {
-            let positions = [];
-            
+            const docChunks = fullText.split(/TRANSCRIPTION/i);
+            const mainDocText = docChunks[0] || "";
+            const ipaDocText = docChunks.length > 1 ? docChunks[1] : "";
+
+            function extractPartsData(textBlock) {
+                let partsObj = { 1:"", 2:"", 3:"", 4:"", 5:"", 6:"", 7:"" };
+                let positions = [];
+                for (let i = 1; i <= 7; i++) {
+                    let regex = new RegExp(`p[aɑ]rt\\s*${i}`, 'i');
+                    let match = textBlock.search(regex);
+                    positions.push({ part: i, index: match });
+                }
+                positions.sort((a, b) => a.index - b.index);
+
+                for (let i = 0; i < positions.length; i++) {
+                    let current = positions[i];
+                    if (current.index !== -1) {
+                        let startIdx = current.index;
+                        let endIdx = textBlock.length;
+                        for (let j = i + 1; j < positions.length; j++) {
+                            if (positions[j].index !== -1) {
+                                endIdx = positions[j].index;
+                                break;
+                            }
+                        }
+                        let rawPart = textBlock.substring(startIdx, endIdx).trim();
+                        rawPart = rawPart.replace(new RegExp(`^p[aɑ]rt\\s*${current.part}[:\\s]*`, 'i'), '').trim();
+                        partsObj[current.part] = rawPart;
+                    }
+                }
+                return partsObj;
+            }
+
+            const mainParts = extractPartsData(mainDocText);
+            const ipaParts = extractPartsData(ipaDocText);
+
             for (let i = 1; i <= 7; i++) {
-                let regex = new RegExp(`part\\s*${i}`, 'i'); 
-                let match = fullText.search(regex);
-                positions.push({ part: i, index: match });
-            }
+                let eText = mainParts[i];
+                let pText = ipaParts[i];
 
-            positions.sort((a, b) => a.index - b.index);
+                if (!eText && !pText) continue;
 
-            for (let i = 0; i < positions.length; i++) {
-                let current = positions[i];
-                let next = positions[i + 1];
+                let htmlContent = `<div class="part-header">PART ${i}</div>`;
+
+                let eLines = eText ? eText.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').split(/\r?\n/).map(l => l.trim()).filter(l => l !== '') : [];
+                let pLines = pText ? pText.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').split(/\r?\n/).map(l => l.trim()).filter(l => l !== '') : [];
+
+                let maxLines = Math.max(eLines.length, pLines.length);
                 
-                let startIdx = current.index;
-                let endIdx = next ? next.index : fullText.length;
+                for (let k = 0; k < maxLines; k++) {
+                    let engSentence = eLines[k] || "";
+                    let ipaSentence = pLines[k] || "";
 
-                if (startIdx !== -1) {
-                    let extractText = fullText.substring(startIdx, endIdx).trim();
-                    separatedParts[current.part] = extractText;
-                } else {
-                    separatedParts[current.part] = `<div class="part-header">PART ${current.part}</div><p>Không tìm thấy nội dung tương ứng của Part ${current.part} trong văn bản gốc của bạn.</p>`;
-                }
-            }
-        }
+                    let engWords = engSentence.split(/\s+/);
+                    let ipaWords = ipaSentence.split(/\s+/);
+                    let maxWords = Math.max(engWords.length, ipaWords.length);
 
-        function generateMockDocument() {
-            for(let i = 1; i <= 7; i++) {
-                let content = `<div class="part-header">VĂN BẢN MẪU KHÔI PHỤC - PART ${i}</div>`;
-                content += `<p>Chào mừng bạn! Đây là dữ liệu giả lập được hiển thị riêng cho <b>Part ${i}</b>.</p>`;
-                content += `<p>Mức tăng giảm kích thước chữ đã được cấu hình chi tiết thành từng 1px một để bạn tùy chỉnh kích cỡ màn hình hoàn hảo nhất.</p>`;
-                for(let j = 1; j <= 10; j++) {
-                    content += `<p>Đây là dòng văn bản thứ ${j} của phần nội dung Part ${i}. Hãy thử bấm (+) hoặc (-) cỡ chữ để thấy sự thay đổi mượt mà.</p>`;
+                    htmlContent += `<div class="trans-row">`;
+                    for (let w = 0; w < maxWords; w++) {
+                        let ew = engWords[w] || "";
+                        let pw = ipaWords[w] || "";
+                        if (ew !== "" || pw !== "") {
+                            htmlContent += `<span class="word-pair"><span class="word-eng">${ew}</span><span class="word-ipa">${pw}</span></span>`;
+                        }
+                    }
+                    htmlContent += `</div>`;
                 }
-                separatedParts[i] = content;
+                separatedParts[i] = htmlContent;
             }
         }
 
         function switchToPart(partNumber) {
             if(partNumber < 1 || partNumber > 7) return;
-            activePart = partNumber;
-            isWaitingForNextPart = false; 
-
+            activePart = partNumber; isWaitingForNextPart = false; 
             document.querySelectorAll('.btn-part').forEach(btn => btn.classList.remove('active'));
             const activeBtn = document.getElementById(`p${partNumber}`);
             if(activeBtn) activeBtn.classList.add('active');
@@ -381,12 +305,10 @@
             if (separatedParts[partNumber] && separatedParts[partNumber].trim() !== "") {
                 contentDiv.innerHTML = separatedParts[partNumber];
             } else {
-                contentDiv.innerHTML = `<div class="part-header">PART ${partNumber}</div><p>Đoạn văn bản này đang trống.</p>`;
+                contentDiv.innerHTML = `<div class="part-header">PART ${partNumber}</div><p>Không có dữ liệu cho phần này.</p>`;
             }
-
-            scrollYPos = 0;
-            container.scrollTop = 0;
-            showStatus(`Đã chuyển sang nội dung: Part ${partNumber}`);
+            scrollYPos = 0; container.scrollTop = 0;
+            showStatus(`Đã chuyển sang: Part ${partNumber}`);
         }
 
         fetchAndProcessDocument();
@@ -397,23 +319,17 @@
                 scrollYPos += dynamicSpeed;
                 container.scrollTop = scrollYPos;
                 
-                if (Math.abs(container.scrollTop - scrollYPos) > 15) {
-                    scrollYPos = container.scrollTop;
-                }
+                if (Math.abs(container.scrollTop - scrollYPos) > 15) { scrollYPos = container.scrollTop; }
 
                 if (container.scrollTop + container.clientHeight >= container.scrollHeight - 2) {
-                    if (activePart < 7) {
+                    if (activePart < 5) { 
                         isWaitingForNextPart = true; 
-                        showStatus(`Chuẩn bị chuyển sang Part ${activePart + 1}...`, 1500);
-                        
-                        setTimeout(() => {
-                            switchToPart(activePart + 1);
-                        }, 1000);
+                        showStatus(`Chuẩn bị chuyển sang Part ${activePart + 1}...`, delayTimeMs);
+                        setTimeout(() => { switchToPart(activePart + 1); }, delayTimeMs); 
                     } else {
-                        showStatus("Đã cuộn hết toàn bộ kịch bản!");
-                        isScrolling = false;
-                        btnToggle.innerText = "Cuộn: Tạm dừng";
-                        btnToggle.style.background = "#cc2929";
+                        showStatus("Đã kết thúc kịch bản!"); isScrolling = false;
+                        document.getElementById('btn-toggle').innerText = "Cuộn: Tạm dừng";
+                        document.getElementById('btn-toggle').style.background = "#cc2929";
                     }
                 }
             }
@@ -423,85 +339,100 @@
 
         function toggleScroll() {
             isScrolling = !isScrolling;
-            if (isScrolling) {
-                btnToggle.innerText = "Cuộn: Bật";
-                btnToggle.style.background = "#007acc";
-            } else {
-                btnToggle.innerText = "Cuộn: Tạm dừng";
-                btnToggle.style.background = "#cc2929";
-            }
+            let btnToggle = document.getElementById('btn-toggle');
+            if (isScrolling) { btnToggle.innerText = "Cuộn: Bật"; btnToggle.style.background = "#007acc"; } 
+            else { btnToggle.innerText = "Cuộn: Tạm dừng"; btnToggle.style.background = "#cc2929"; }
         }
 
         function adjustSpeedLevel(amount) {
             currentSpeedLevel += amount;
             if (currentSpeedLevel < 0) currentSpeedLevel = 0; 
             if (currentSpeedLevel > MAX_SPEED_LEVEL) currentSpeedLevel = MAX_SPEED_LEVEL;
-            
-            speedVal.innerText = `${currentSpeedLevel} / ${MAX_SPEED_LEVEL}`;
+            document.getElementById('speed-val').innerText = `${currentSpeedLevel} / ${MAX_SPEED_LEVEL}`;
         }
 
         function adjustFont(amount) {
-            fontSize += amount;
-            if (fontSize < 16) fontSize = 16;
-            if (fontSize > 130) fontSize = 130;
+            fontSize += amount; if (fontSize < 16) fontSize = 16; if (fontSize > 130) fontSize = 130;
             contentDiv.style.fontSize = fontSize + 'px';
-            fontVal.innerText = fontSize + 'px';
+            document.getElementById('font-val').innerText = fontSize + 'px';
+        }
+
+        function adjustRowGap(amount) {
+            currentRowGap += amount;
+            currentRowGap = Math.round(currentRowGap * 10) / 10; 
+            // Cho phép hạ xuống số ÂM để 2 dòng đè sát vào nhau
+            if (currentRowGap < -0.5) currentRowGap = -0.5; 
+            if (currentRowGap > 5.0) currentRowGap = 5.0;
+            
+            document.documentElement.style.setProperty('--row-gap-val', currentRowGap + 'em');
+            document.getElementById('rowgap-val').innerText = currentRowGap.toFixed(1);
+        }
+
+        function adjustIpaGap(amount) {
+            currentIpaGap += amount;
+            currentIpaGap = Math.round(currentIpaGap * 10) / 10; 
+            // Cho phép hạ xuống số ÂM để phiên âm kéo sát lên tiếng Anh
+            if (currentIpaGap < -0.5) currentIpaGap = -0.5; 
+            if (currentIpaGap > 3.0) currentIpaGap = 3.0;
+            
+            document.documentElement.style.setProperty('--ipa-gap-val', currentIpaGap + 'em');
+            document.getElementById('ipagap-val').innerText = currentIpaGap.toFixed(1);
+        }
+
+        function adjustDelayTime(amountSec) {
+            let currentSec = delayTimeMs / 1000;
+            currentSec += amountSec;
+            currentSec = Math.round(currentSec * 10) / 10;
+            if (currentSec < 0) currentSec = 0;
+            if (currentSec > 10) currentSec = 10; 
+            delayTimeMs = currentSec * 1000;
+            document.getElementById('delay-val').innerText = currentSec.toFixed(1) + 's';
         }
 
         function changeMargin(marginValue) {
-            container.style.paddingLeft = marginValue + '%';
-            container.style.paddingRight = marginValue + '%';
-            marginVal.innerText = marginValue + '%';
+            container.style.paddingLeft = marginValue + '%'; container.style.paddingRight = marginValue + '%';
+            document.getElementById('margin-val').innerText = marginValue + '%';
         }
 
-        function changeTextColor(colorValue) {
-            contentDiv.style.color = colorValue;
-        }
+        function changeTextColor(colorValue) { contentDiv.style.color = colorValue; }
 
         let speedInterval = null;
         function startAdjustingSpeed(amount) {
             adjustSpeedLevel(amount);
             if(speedInterval) clearInterval(speedInterval);
-            speedInterval = setInterval(() => {
-                adjustSpeedLevel(amount);
-            }, 100); 
+            speedInterval = setInterval(() => adjustSpeedLevel(amount), 100); 
         }
-        function stopAdjustingSpeed() {
-            if(speedInterval) {
-                clearInterval(speedInterval);
-                speedInterval = null;
-            }
-        }
+        function stopAdjustingSpeed() { if(speedInterval) { clearInterval(speedInterval); speedInterval = null; } }
 
-        const btnMinus = document.getElementById('btn-speed-minus');
-        const btnPlus = document.getElementById('btn-speed-plus');
-
-        btnMinus.addEventListener('mousedown', () => startAdjustingSpeed(-1));
-        btnPlus.addEventListener('mousedown', () => startAdjustingSpeed(1));
+        document.getElementById('btn-speed-minus').addEventListener('mousedown', () => startAdjustingSpeed(-1));
+        document.getElementById('btn-speed-plus').addEventListener('mousedown', () => startAdjustingSpeed(1));
         window.addEventListener('mouseup', stopAdjustingSpeed);
-
-        btnMinus.addEventListener('touchstart', (e) => { e.preventDefault(); startAdjustingSpeed(-1); });
-        btnPlus.addEventListener('touchstart', (e) => { e.preventDefault(); startAdjustingSpeed(1); });
+        document.getElementById('btn-speed-minus').addEventListener('touchstart', (e) => { e.preventDefault(); startAdjustingSpeed(-1); });
+        document.getElementById('btn-speed-plus').addEventListener('touchstart', (e) => { e.preventDefault(); startAdjustingSpeed(1); });
         window.addEventListener('touchend', stopAdjustingSpeed);
 
         window.addEventListener('keydown', function(event) {
-            if (['ArrowUp', 'ArrowDown', ' '].includes(event.key)) {
+            // Chặn hành vi mặc định của trình duyệt với các phím này
+            if (['ArrowUp', 'ArrowDown', ' ', 'PageUp', 'PageDown'].includes(event.key)) { 
                 event.preventDefault(); 
             }
-            if (event.key === 'ArrowUp') {
-                adjustSpeedLevel(1);
-            } else if (event.key === 'ArrowDown') {
+            
+            // Phím Mũi tên hoặc PageUp (thường là phím Phải trên bút) -> Tăng tốc
+            if (event.key === 'ArrowUp' || event.key === 'PageDown') {
+                adjustSpeedLevel(1); 
+            } 
+            // Phím Mũi tên hoặc PageDown (thường là phím Trái trên bút) -> Giảm tốc
+            else if (event.key === 'ArrowDown' || event.key === 'PageUp') {
                 adjustSpeedLevel(-1);
-            } else if (event.key === ' ') {
+            } 
+            // Phím cách để dừng cuộn
+            else if (event.key === ' ') {
                 toggleScroll();
             }
         });
 
         window.addEventListener('keyup', function(event) {
-            if (event.key >= '1' && event.key <= '7') {
-                const target = parseInt(event.key);
-                switchToPart(target);
-            }
+            if (event.key >= '1' && event.key <= '7') switchToPart(parseInt(event.key));
         });
     </script>
 </body>
